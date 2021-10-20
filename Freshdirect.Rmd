@@ -1,0 +1,288 @@
+---
+title: "Marketing Analysis Freshdirect"
+output: flexdashboard::flex_dashboard
+runtime: shiny
+---
+
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(shiny)
+library(formulaic)
+library(rmarkdown)
+library(knitr)
+library(Hmisc)
+library(DT)
+library(data.table)
+
+assignInNamespace(x = "cedta.override", value = c(data.table:::cedta.override,"rmarkdown"), ns = "data.table")
+
+opts_chunk$set(echo = FALSE, comment="", warning = FALSE, message = FALSE, tidy.opts=list(width.cutoff=55), tidy = TRUE)
+
+getwd()
+setwd("~/Desktop/APAN5100 Org/Assignment2")
+```
+
+
+```{r functions}
+numerize_table <- function(data, limit = 10) {
+  for (col in colnames(data)) {
+    if (is.numeric(data[[col]])) {
+      data[[col]] <- as.numeric(data[[col]])
+    }
+  }
+  return(data)
+}
+
+factorize_table <- function(data, limit = 30) {
+  for (col in colnames(data)) {
+    if ((length(unique(data[[col]])) <= limit) &
+        (class(data[[col]]) == 'character')) {
+      data[[col]] <- as.factor(data[[col]])
+    }
+  }
+  return(data)
+}
+
+percentage.table <- function(x, digits = 1){
+  tab <- table(x)
+  percentage.tab <- 100*tab/(sum(tab))
+  rounded.tab <- round(x = percentage.tab, digits = digits)
+  return(rounded.tab)
+}
+
+round.numerics <- function(x, digits){
+  if(is.numeric(x)){
+    x <- round(x = x, digits = digits)
+  }
+  return(x)
+}
+```
+
+```{r constants}
+# Variable names
+customer_id.name <- "CUSTOMER_ID"              
+loyaltyseg.name <- "LOYALTY_SEGMENT"          
+chefstable.name <- "CHEFS_TABLE"              
+age.name <- "AGE"                     
+income.name <- "INCOME"                   
+gender.name <- "GENDER"                   
+zipcode.name <- "ZIP_CODE"                 
+dma.name <- "DMA"                     
+geography.name <- "GEOGRAPHY"                
+aquireddate.name <- "ACQUIRED_DATE"            
+yr1deliveryfeepaid.name <- "12 Mo. DELIVERY_FEE_PAID" 
+yr1deliverypassused.name <- "12 Mo. DELIVERYPASS_USED"
+yr1discountamount.name <- "12 Mo. DISCOUNT_AMOUNT"   
+yr1orders.name <- "12 Mo. Orders"            
+yr1orderswithpromo.name <- "12 Mo. ORDERS_W_PROMO"    
+yr1sales.name <- "12 Mo. Sales"            
+yr2deliveryfeepaid.name <- "24 Mo. DELIVERY_FEE_PAID" 
+yr2deliverypassused.name <- "24 Mo. DELIVERYPASS_USED" 
+yr2discountamount.name <- "24 Mo. DISCOUNT_AMOUNT"   
+yr2orders.name <- "24 Mo. Orders"           
+yr2orderswithpromo.name <- "24 Mo. Orders w. Promo"   
+yr2sales.name <- "24 Mo. Sales"             
+yr1sunorders.name <- "SUNDAY ORDERS 12 MO."     
+y1monorders.name <- "MONDAY ORDERS 12 MO."    
+y1tueorders.name <- "TUESDAY ORDERS 12 MO."    
+y1wedorders.name <- "WEDNESDAY ORDERS 12 MO."  
+y1thuorders.name <- "THURSDAY ORDERS 12 MO."   
+y1friorders.name <- "FRIDAY ORDERS 12 MO."    
+y1satorders.name <- "SATURDAY ORDERS 12 MO."   
+alcohobeverages.name <- "AlcoholicBeverages"       
+babyboutique.name <- "BabyBoutique"             
+bakery.name <- "Bakery"                  
+bread.name <- "Bread"                    
+catering.name <- "Catering"                 
+dairy.name <- "Dairy"                    
+deliandcheese.name <- "DeliandCheese"           
+floral.name <- "Floral"                   
+freezer.name <- "Freezer"                  
+grocery.name <- "Grocery"                  
+healthandbeautyaids.name <- "HealthandBeautyAids"     
+householdessentials.name <- "HouseholdEssentials"      
+kitchen.name <- "Kitchen"                  
+mealkit.name <- "MealKit"                  
+meat.name <- "Meat"                    
+nonalcoholicbeverages.name <- "NonalcoholicBeverages"    
+petshop.name <- "PetShop"                  
+poultry.name <- "Poultry"                  
+produce.name <- "Produce"                 
+seafood.name <- "Seafood"                  
+snacks.name <- "Snacks"   
+agegroup.name <- "agegrp"
+incomegroup.name <- "incomegrp"
+
+```
+
+
+```{r read_data, include=FALSE, eval=TRUE}
+dat <- fread("Freshdirect.csv", na.strings = "#N/A")
+head(dat)
+```
+
+```{r explore, include=FALSE}
+summary(dat)
+```
+
+```{r clean_data, include=FALSE}
+dat <- numerize_table(dat)
+dat <- factorize_table(dat)
+dat$agegrp <- cut(dat$AGE, c(0, 10, 20, 30, 40, 50, 60, 70, 200), labels = c("0–10", "11-20", "21-30", "31-40", "41-50", "51-60", "61-70", "71+" ))
+dat$incomegrp <- cut(dat$INCOME, c(0, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000, 110000, 120000, 130000, 140000, 150000, 160000, 170000, 180000, 190000, 200000, 4000000), labels = c("0-10k", "10-20k", "20-30k", "30-40k", "40-50k", "50-60k", "60-70k", "70-80k", "80-90k", "90-100k", "100-110k", "110-120k",  "120-130k", "130-140k", "140-150k", "150-160k", "160-170k", "170-180k", "180-190k", "190-200k", "200k+"))
+```
+
+
+
+
+```{r define_variables, include=FALSE}
+unique.agegroups <- dat[, sort(unique(get(agegroup.name)))]
+unique.genders <- dat[, sort(unique(get(gender.name)))]
+unique.incomegrps <- dat[, sort(unique(get(incomegroup.name)))]
+unique.geography <- dat[, sort(unique(get(geography.name)))]
+unique.loyaltyseg <- dat[, sort(unique(get(loyaltyseg.name)))]
+       
+all.variables <- c(customer_id.name, loyaltyseg.name, chefstable.name, age.name, income.name, gender.name, zipcode.name, dma.name, geography.name, aquireddate.name, yr1deliveryfeepaid.name, yr1deliverypassused.name, yr1discountamount.name, yr1orders.name, yr1orderswithpromo.name, yr1sales.name, yr2deliveryfeepaid.name, yr2deliverypassused.name, yr2discountamount.name, yr2orders.name, yr2orderswithpromo.name, yr2sales.name, yr1sunorders.name, y1monorders.name, y1tueorders.name, y1wedorders.name, y1thuorders.name, y1friorders.name, y1satorders.name, agegroup.name, incomegroup.name)
+
+customer.variables <- c(loyaltyseg.name, chefstable.name,gender.name, dma.name, geography.name, agegroup.name, incomegroup.name)
+
+grouping.variables <- c(gender.name, dma.name, geography.name, agegroup.name, incomegroup.name)
+
+targetdata <- c(yr1deliveryfeepaid.name, yr1deliverypassused.name, yr1discountamount.name, yr1orders.name, yr1orderswithpromo.name, yr1sales.name, yr2deliveryfeepaid.name, yr2deliverypassused.name, yr2discountamount.name, yr2orders.name, yr2orderswithpromo.name, yr2sales.name, yr1sunorders.name, y1monorders.name, y1tueorders.name, y1wedorders.name, y1thuorders.name, y1friorders.name, y1satorders.name)
+
+goodsvariables <- c(alcohobeverages.name, babyboutique.name, bakery.name, bread.name, catering.name, dairy.name, deliandcheese.name, floral.name, freezer.name, grocery.name, healthandbeautyaids.name, householdessentials.name, kitchen.name, mealkit.name, meat.name, nonalcoholicbeverages.name, petshop.name, poultry.name, produce.name, seafood.name, snacks.name)
+```
+
+
+
+Introduction
+=====================================  
+
+We are analyzing data from the FreshDirect of their customers.  
+
+The data includes the personal information of `r dat[, length(unique(get(customer_id.name)))]` customers, and their purchase & delivery information.
+
+Click on the tabs to see different reports.
+
+
+Data Summaries
+=====================================  
+```{r summary_input}
+inputPanel(
+  selectInput(inputId="any_variable", label = "Select Variable:", choices = all.variables, selected = all.variables[2])
+)
+```
+
+```{r summary_output}
+renderPrint({
+  summary(dat[,get(input$any_variable)])
+  })
+```
+
+Customer Distributions
+===================================
+
+Row {data-height=500}
+-------------------------------------
+
+```{r distribution_input}
+inputPanel(
+  selectInput(inputId="customer_variable", label = "Select Variable:", choices = customer.variables, selected = customer.variables[1]),
+  checkboxInput(inputId = "customer_show_percentages", label = "Show Percentages", value = TRUE),
+  sliderInput(inputId = "distribution_info_names_magnification", label = "Adjust Font Size", min = 0.4, max = 1.4, value = 0.8, step = 0.1)
+)
+```
+
+```{r distribution_output}
+renderPlot({
+  tab <- percentage.table(x = dat[, .SD[1], by = customer_id.name][, get(input$customer_variable)])
+  barplot(height = tab, space=0.00, las = 1, main = input$customer_variable, ylab = "Percentage", xlab = input$rcustomer_variable, ylim = c(0, 1.2 * max(tab, na.rm = TRUE)), cex.names = input$distribution_info_names_magnification, col = "dodgerblue")
+  
+  if(input$customer_show_percentages == TRUE){
+    space_val = 0
+    text(x = -0.4 + 1:length(tab) * (1+space_val), y = tab, labels = sprintf("%.1f%%", tab), pos = 3)
+  }
+})
+```
+
+
+
+Activity Engagement
+=====================================  
+
+Row {data-height=500}
+-------------------------------------
+
+```{r engagement_plots_input}
+inputPanel(
+  selectInput(inputId="ep_data", label = "Select Data to Explore:", choices = targetdata, selected = targetdata[1]),
+  selectInput(inputId="ep_subgroup", label = "Select Subgroup:", choices = grouping.variables, selected = grouping.variables),
+  checkboxInput(inputId = "ep_show_percentages", label = "Show Percentages", value = TRUE),
+  sliderInput(inputId = "ae_magnification", label = "Adjust Font Size", min = 0.4, max = 1.4, value = 0.8, step = 0.1)
+)
+
+```
+
+```{r engagement_plots_output}
+renderPlot({
+  tab <- dat[, .(Mean = mean(get(input$ep_data), na.rm=TRUE)), keyby = eval(input$ep_subgroup)]
+
+  barplot(height = tab[, Mean], names.arg = tab[, get(input$ep_subgroup)], space=0.01, las = 1, main = sprintf("%s", input$ep_data), ylab = "Average Amount", xlab = input$ep_subgroup, cex.names = input$ae_magnification, ylim = c(0, 1.2 * max(tab[, Mean], na.rm = TRUE)), col = "dodgerblue")
+  
+  if(input$ep_show_percentages == TRUE){
+    space_val = 0
+    text(x = -0.4 + 1:tab[, .N] * (1+space_val), y = tab[, Mean], labels = sprintf("%.2f", tab[, Mean]), pos = 3)
+  }
+})
+
+```
+
+
+
+
+
+Purchase Ingredient
+=====================================  
+
+Row {data-height=500}
+-------------------------------------
+
+```{r purchase_ingredient_input}
+inputPanel(
+  selectInput(inputId="pi_good", label = "Select Category:", choices = goodsvariables, selected = goodsvariables[1]),
+  selectInput(inputId="pi_subgroup", label = "Select Subgroup:", choices = grouping.variables, selected = grouping.variables),
+  checkboxInput(inputId = "pi_show_percentages", label = "Show Percentages", value = TRUE),
+  sliderInput(inputId = "pi_magnification", label = "Adjust Font Size", min = 0.4, max = 1.4, value = 0.8, step = 0.1)
+)
+
+```
+
+```{r purchase_ingredient_output}
+renderPlot({
+  tab <- dat[, .(Mean = mean(get(input$pi_good), na.rm=TRUE)), keyby = eval(input$pi_subgroup)]
+
+  barplot(height = tab[, Mean], names.arg = tab[, get(input$pi_subgroup)], space=0.01, las = 1, main = sprintf("%s", input$pi_good), ylab = "Average Percentage in Purchase", xlab = input$pi_subgroup, cex.names = input$pi_magnification, ylim = c(0, 1.2 * max(tab[, Mean], na.rm = TRUE)), col = "dodgerblue")
+  
+  if(input$pi_show_percentages == TRUE){
+    space_val = 0
+    text(x = -0.4 + 1:tab[, .N] * (1+space_val), y = tab[, Mean], labels = sprintf("%.1f%%", tab[, Mean]), pos = 3)
+  }
+})
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
